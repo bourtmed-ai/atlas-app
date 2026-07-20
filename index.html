@@ -67,6 +67,10 @@
   .veh-tags{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
   .vtag{font-size:11px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:5px 10px;border-radius:20px;}
 
+  .veh-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .action-btn{font-size:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:var(--paper);padding:7px 12px;border-radius:20px;font-family:'Inter',sans-serif;}
+  .action-btn.danger{color:#F3B6A6;border-color:rgba(179,73,43,0.5);}
+
   .gauge-wrap{display:flex;gap:18px;align-items:flex-start;padding:20px;}
   .gauge-num{font-size:40px;font-family:'Fraunces',serif;font-weight:600;line-height:1;}
   .gauge-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-top:4px;text-align:center;}
@@ -262,6 +266,7 @@
 
   <div class="screen" id="screen-detail"></div>
   <div class="screen" id="screen-onboarding"></div>
+  <div class="screen" id="screen-myvehicles"></div>
 
   <div class="tabbar">
     <button class="tabbar-btn active" data-nav="search">Search</button>
@@ -283,6 +288,17 @@
       <input type="text" id="stationNameInput" placeholder="Detecting nearby name…">
     </div>
     <div class="hint" style="padding:0 20px 20px;" id="stationHint">Getting your location…</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <button class="modal-x" onclick="closeEditModal()">&times;</button>
+      <div class="modal-title">Edit vehicle</div>
+      <button class="modal-add" onclick="saveEditVehicle()">Save</button>
+    </div>
+    <div id="editModalBody" style="padding:0 20px 10px;"></div>
   </div>
 </div>
 
