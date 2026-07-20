@@ -135,17 +135,45 @@ function resetOnboarding() {
   onboardingState.papers = { registration: "", visite: "", vignette: "", insuranceStart: "", insuranceEnd: "" };
 }
 
+const MAX_FREE_VEHICLES = 2;
+
 function startOnboarding() {
+  if ((currentVehicles || []).length >= MAX_FREE_VEHICLES) {
+    showPaywall();
+    return;
+  }
   resetOnboarding();
   document.getElementById("screen-search").classList.remove("active");
   document.getElementById("screen-detail").classList.remove("active");
   document.getElementById("screen-onboarding").classList.add("active");
+  document.querySelector(".tabbar").style.display = "none";
   renderOnboarding();
+}
+
+function showPaywall() {
+  document.getElementById("screen-search").classList.remove("active");
+  document.getElementById("screen-detail").classList.remove("active");
+  const el = document.getElementById("screen-onboarding");
+  el.classList.add("active");
+  document.querySelector(".tabbar").style.display = "none";
+  el.innerHTML = `
+    <div class="wiz-top">
+      <button class="wiz-close" onclick="exitOnboarding()">&times;</button>
+      <div class="wiz-title" style="margin-top:20px;">You've reached your free limit</div>
+    </div>
+    <div class="wiz-body">
+      <div class="hint" style="margin-top:0; font-size:14px; line-height:1.6;">
+        The first ${MAX_FREE_VEHICLES} vehicles on your account are free. Adding another vehicle needs a paid plan.
+      </div>
+      <button class="wiz-next" style="width:100%; margin-top:16px;" onclick="alert('Payments aren\\'t set up yet — coming soon.')">Upgrade</button>
+    </div>
+  `;
 }
 
 function exitOnboarding() {
   document.getElementById("screen-onboarding").classList.remove("active");
   document.getElementById("screen-search").classList.add("active");
+  document.querySelector(".tabbar").style.display = "flex";
 }
 
 function currentFlow() {
