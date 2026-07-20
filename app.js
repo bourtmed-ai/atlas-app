@@ -122,6 +122,14 @@ function daysUntil(dateStr) {
   return Math.ceil(diff);
 }
 
+function plainPaperRow(label, dateStr) {
+  return `
+    <div class="owner-row">
+      <div><div>${label}</div><div class="oname">${dateStr || "Not set"}</div></div>
+    </div>
+  `;
+}
+
 function paperRow(label, dateStr) {
   const days = daysUntil(dateStr);
   let warn = "";
@@ -238,10 +246,11 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
     </div>
 
     <div class="tab-panel" data-panel="papers">
-      ${paperRow("Registration card", papers && papers.registration_date)}
-      ${paperRow("Visite technique", papers && papers.visite_due)}
-      ${paperRow("Vignette (annual)", papers && papers.vignette_due)}
-      ${paperRow("Insurance", papers && papers.insurance_due)}
+      ${paperRow("Registration card — validity end", papers && papers.registration_date)}
+      ${v.type !== "moto" ? paperRow("Visite technique", papers && papers.visite_due) : ""}
+      ${v.type !== "moto" ? paperRow("Vignette (annual)", papers && papers.vignette_due) : ""}
+      ${plainPaperRow("Insurance start", papers && papers.insurance_start_date)}
+      ${paperRow("Insurance end", papers && papers.insurance_end_date)}
       <a class="opp-link" href="http://www.assiaqacard.ma/opppub/" target="_blank" rel="noopener">
         <div>
           <div class="otitle">Check opposition status</div>
