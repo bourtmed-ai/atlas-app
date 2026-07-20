@@ -83,6 +83,7 @@ document.getElementById("goBtn").onclick = () => {
 };
 
 async function openVehicle(id) {
+  pendingStation = null;
   const v = currentVehicles.find(x => x.id === id) || (await sb.from("vehicles").select("*").eq("id", id).single()).data;
   if (!v) return;
 
@@ -154,6 +155,58 @@ function avgConsumption(fuelEntries) {
   return ((totalLiters / totalKm) * 100).toFixed(1);
 }
 
+function fuelSegments(fuelEntries) {
+  const full = fuelEntries.filter(f => f.full_tank && f.odometer).slice().sort((a, b) => a.odometer - b.odometer);
+  const segs = [];
+  for (let i = 1; i < full.length; i++) {
+    const km = full[i].odometer - full[i - 1].odometer;
+    if (km > 0) segs.push({ km, liters: full[i].liters, date: full[i].entry_date, l100: (full[i].liters / km) * 100 });
+  }
+  return segs;
+}
+
+function fuelReportHtml(fuelEntries) {
+  if (fuelEntries.length === 0) {
+    return `<div class="hint" style="margin-top:0;">No fuel entries yet — log a few fill-ups to see your report here.</div>`;
+  }
+  const sorted = fuelEntries.slice().sort((a, b) => new Date(a.entry_date) - new Date(b.entry_date));
+  const first = sorted[0], last = sorted[sorted.length - 1];
+  const totalCost = fuelEntries.reduce((s, f) => s + (Number(f.price_paid) || 0), 0);
+  const totalVolume = fuelEntries.reduce((s, f) => s + (Number(f.liters) || 0), 0);
+  const segs = fuelSegments(fuelEntries);
+  const totalKmTracked = segs.reduce((s, x) => s + x.km, 0);
+  const days = Math.max(1, Math.round((new Date(last.entry_date) - new Date(first.entry_date)) / 86400000));
+  const costPerDay = totalCost / days;
+  const costPerKm = totalKmTracked > 0 ? totalCost / totalKmTracked : null;
+  const general = segs.length > 0 ? (segs.reduce((s, x) => s + x.liters, 0) / segs.reduce((s, x) => s + x.km, 0)) * 100 : null;
+  const lastSeg = segs[segs.length - 1];
+  const best = segs.length ? segs.reduce((a, b) => (a.l100 < b.l100 ? a : b)) : null;
+  const worst = segs.length ? segs.reduce((a, b) => (a.l100 > b.l100 ? a : b)) : null;
+
+  return `
+    <div class="hint" style="margin-top:0;">${fuelEntries.length} entries (${first.entry_date} — ${last.entry_date})</div>
+    <div class="report-grid">
+      <div class="rstat"><div class="rlabel">Total cost</div><div class="rval">${totalCost.toFixed(0)} MAD</div></div>
+      <div class="rstat"><div class="rlabel">Cost / day</div><div class="rval">${costPerDay.toFixed(1)} MAD</div></div>
+      <div class="rstat"><div class="rlabel">Cost / km</div><div class="rval">${costPerKm !== null ? costPerKm.toFixed(2) + " MAD" : "—"}</div></div>
+      <div class="rstat"><div class="rlabel">Total volume</div><div class="rval">${totalVolume.toFixed(1)} L</div></div>
+      <div class="rstat"><div class="rlabel">General average</div><div class="rval">${general !== null ? general.toFixed(1) + " L/100km" : "—"}</div></div>
+      <div class="rstat"><div class="rlabel">Last fill-up</div><div class="rval">${lastSeg ? lastSeg.l100.toFixed(1) + " L/100km" : "—"}</div></div>
+      <div class="rstat good"><div class="rlabel">Best</div><div class="rval">${best ? best.l100.toFixed(1) + " L/100km" : "—"}</div></div>
+      <div class="rstat bad"><div class="rlabel">Worst</div><div class="rval">${worst ? worst.l100.toFixed(1) + " L/100km" : "—"}</div></div>
+    </div>
+  `;
+}
+
+function recalcLiters() {
+  const priceEl = document.getElementById("fl-priceperl");
+  const totalEl = document.getElementById("fl-total");
+  const litersEl = document.getElementById("fl-liters");
+  const price = parseFloat(priceEl.value);
+  const total = parseFloat(totalEl.value);
+  if (price > 0 && total > 0) litersEl.value = (total / price).toFixed(2);
+}
+
 function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
   const consumption = avgConsumption(fuelEntries);
   const score = quickScore(v);
@@ -190,7 +243,10 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
     </div>
 
     <div class="tab-panel active" data-panel="mileage">
-      <div class="section-label" style="margin-top:0;">Add entry</div>
+      <div class="section-label" style="margin-top:0;">Fuel report</div>
+      ${fuelReportHtml(fuelEntries)}
+
+      <div class="section-label">Add entry</div>
       <div class="field-row">
         <div class="field"><label>Date</label><input type="date" id="ml-date"></div>
         <div class="field"><label>Odometer (km)</label><input type="number" id="ml-odo" placeholder="e.g. 85200"></div>
@@ -199,15 +255,23 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
 
       <div class="field-row">
         <div class="field"><label>Fuel date</label><input type="date" id="fl-date"></div>
-        <div class="field"><label>Odometer</label><input type="number" id="fl-odo"></div>
+        <div class="field"><label>Odometer <span class="opt">${v.current_mileage ? "last: " + v.current_mileage + " km" : ""}</span></label><input type="number" id="fl-odo"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Liters</label><input type="number" step="0.1" id="fl-liters"></div>
-        <div class="field"><label>Price paid (MAD)</label><input type="number" step="0.1" id="fl-price"></div>
+        <div class="field"><label>Price / liter (MAD)</label><input type="number" step="0.01" id="fl-priceperl" oninput="recalcLiters()"></div>
+        <div class="field"><label>Total cost (MAD)</label><input type="number" step="0.1" id="fl-total" oninput="recalcLiters()"></div>
       </div>
+      <div class="field"><label>Liters <span class="opt">(calculated automatically)</span></label><input type="number" step="0.01" id="fl-liters" readonly style="background:var(--paper2);"></div>
       <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); margin-bottom:10px;">
         <input type="checkbox" id="fl-full" checked style="width:auto;"> Full tank
       </label>
+      <div class="field">
+        <label>Gas station <span class="opt">(optional)</span></label>
+        <button type="button" class="station-picker-btn" onclick="openStationPicker()">
+          <span id="fl-station-display">Tap to set on map</span>
+          <span class="oarrow">&rarr;</span>
+        </button>
+      </div>
       <button class="wiz-next" style="width:100%;" onclick="addFuel('${v.id}')">Log fuel</button>
 
       <div class="section-label">History</div>
@@ -216,7 +280,7 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
         <div class="rec"><div class="rec-head"><div class="rec-title">Mileage: ${m.odometer} km</div></div><div class="rec-date">${m.entry_date}</div></div>
       `).join("")}
       ${fuelEntries.map(f => `
-        <div class="rec"><div class="rec-head"><div class="rec-title">${f.liters} L${f.price_paid ? " · " + f.price_paid + " MAD" : ""}</div><div class="vstatus ${f.full_tank ? "verified" : "self"}">${f.full_tank ? "Full" : "Partial"}</div></div><div class="rec-date">${f.entry_date}</div><div class="rec-meta">${f.odometer} km</div></div>
+        <div class="rec"><div class="rec-head"><div class="rec-title">${f.liters} L${f.price_paid ? " · " + f.price_paid + " MAD" : ""}</div><div class="vstatus ${f.full_tank ? "verified" : "self"}">${f.full_tank ? "Full" : "Partial"}</div></div><div class="rec-date">${f.entry_date}</div><div class="rec-meta">${f.odometer} km${f.gas_station_name ? " · " + f.gas_station_name : ""}</div></div>
       `).join("")}
     </div>
 
@@ -276,11 +340,22 @@ async function addFuel(vehicleId) {
   const entry_date = document.getElementById("fl-date").value;
   const odometer = Number(document.getElementById("fl-odo").value);
   const liters = Number(document.getElementById("fl-liters").value);
-  const price_paid = Number(document.getElementById("fl-price").value) || null;
+  const total = Number(document.getElementById("fl-total").value) || null;
   const full_tank = document.getElementById("fl-full").checked;
-  if (!entry_date || !odometer || !liters) { alert("Enter date, odometer, and liters."); return; }
-  const { error } = await sb.from("fuel_entries").insert({ vehicle_id: vehicleId, entry_date, odometer, liters, price_paid, full_tank });
+  if (!entry_date || !odometer || !liters) { alert("Enter date, odometer, price/liter, and total cost."); return; }
+  const { error } = await sb.from("fuel_entries").insert({
+    vehicle_id: vehicleId,
+    entry_date,
+    odometer,
+    liters,
+    price_paid: total,
+    full_tank,
+    gas_station_name: pendingStation ? pendingStation.name : null,
+    gas_station_lat: pendingStation ? pendingStation.lat : null,
+    gas_station_lng: pendingStation ? pendingStation.lng : null,
+  });
   if (error) { alert(error.message); return; }
+  pendingStation = null;
   openVehicle(vehicleId);
 }
 
