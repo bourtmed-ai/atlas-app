@@ -1,4 +1,4 @@
-const CACHE_NAME = "atlas-v3";
+const CACHE_NAME = "atlas-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const ASSETS = [
   "./auth.js",
   "./supabase-client.js",
   "./onboarding.js",
+  "./station-picker.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
