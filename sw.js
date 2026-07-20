@@ -1,4 +1,4 @@
-const CACHE_NAME = "atlas-v2";
+const CACHE_NAME = "atlas-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,17 +27,35 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Code files (HTML/JS): always try the network first so updates show up immediately.
+// Only fall back to the cached copy if there's no connection (offline support).
+function isCodeFile(url) {
+  return url.endsWith(".js") || url.endsWith(".html") || url.endsWith("/");
+}
+
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
+  const url = event.request.url;
+
+  if (isCodeFile(url)) {
+    event.respondWith(
+      fetch(event.request)
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => cached);
-    })
-  );
+        .catch(() => caches.match(event.request))
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        });
+      })
+    );
+  }
 });
