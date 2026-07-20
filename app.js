@@ -88,8 +88,7 @@ async function openVehicle(id) {
   if (!v) return;
 
   screenDetail.innerHTML = `<div class="hint" style="padding:30px 20px;">Loading…</div>`;
-  screenSearch.classList.remove("active");
-  screenDetail.classList.add("active");
+  showScreen("screen-detail");
 
   const [papersRes, mileageRes, fuelRes, serviceRes] = await Promise.all([
     sb.from("vehicle_papers").select("*").eq("vehicle_id", id).maybeSingle(),
@@ -107,9 +106,13 @@ async function openVehicle(id) {
   bindDetailEvents(v.id);
 }
 
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
 function backToSearch() {
-  screenDetail.classList.remove("active");
-  screenSearch.classList.add("active");
+  showScreen("screen-search");
   renderRecentList();
 }
 
@@ -123,24 +126,12 @@ function daysUntil(dateStr) {
   return Math.ceil(diff);
 }
 
-function plainPaperRow(label, dateStr) {
-  return `
-    <div class="owner-row">
-      <div><div>${label}</div><div class="oname">${dateStr || "Not set"}</div></div>
-    </div>
-  `;
-}
-
-function paperRow(label, dateStr) {
+function warnBadge(dateStr) {
   const days = daysUntil(dateStr);
-  let warn = "";
-  if (dateStr && days !== null && days < 0) warn = ` <span style="color:var(--coral);">&#9888; overdue</span>`;
-  else if (dateStr && days !== null && days <= 7) warn = ` <span style="color:var(--amber);">&#9888; due soon</span>`;
-  return `
-    <div class="owner-row">
-      <div><div>${label}</div><div class="oname">${dateStr || "Not set"}${warn}</div></div>
-    </div>
-  `;
+  if (!dateStr || days === null) return "";
+  if (days < 0) return ` <span style="color:var(--coral); font-weight:600;">&#9888; overdue</span>`;
+  if (days <= 7) return ` <span style="color:var(--amber); font-weight:600;">&#9888; due soon</span>`;
+  return "";
 }
 
 function avgConsumption(fuelEntries) {
@@ -215,7 +206,7 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
     <div class="detail-top">
       <div class="back-row" style="display:flex; justify-content:space-between; align-items:center;">
         <button class="back-btn" onclick="backToSearch()">&#8592;</button>
-        <button class="back-btn" style="font-size:12px; opacity:0.8;" onclick="promptMarkSold('${v.id}')">Mark as sold</button>
+        ${v.status === "sold" ? `<div class="vtag" style="background:rgba(200,155,60,0.2);">Sold</div>` : ""}
       </div>
       <div class="veh-title">${v.make || "Vehicle"} ${v.model || ""}</div>
       <div class="veh-sub">${v.year || ""} · ${v.plate || "—"} · <span class="num">${v.vin || "no VIN"}</span></div>
@@ -223,6 +214,14 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
         <div class="vtag">${v.current_mileage || 0} km</div>
         <div class="vtag">${serviceRecords.length} service record${serviceRecords.length === 1 ? "" : "s"}</div>
         ${consumption ? `<div class="vtag">${consumption} L/100km</div>` : ""}
+      </div>
+      <div class="veh-actions">
+        <button class="action-btn" onclick="openEditVehicle('${v.id}')">Edit details</button>
+        ${v.status === "sold"
+          ? `<button class="action-btn" onclick="restoreVehicle('${v.id}')">Restore to active</button>
+             <button class="action-btn danger" onclick="deleteVehicleForever('${v.id}')">Delete permanently</button>`
+          : `<button class="action-btn" onclick="promptMarkSold('${v.id}')">Mark as sold</button>`
+        }
       </div>
     </div>
 
@@ -310,12 +309,28 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
     </div>
 
     <div class="tab-panel" data-panel="papers">
-      ${paperRow("Registration card — validity end", papers && papers.registration_date)}
-      ${v.type !== "moto" ? paperRow("Visite technique", papers && papers.visite_due) : ""}
-      ${v.type !== "moto" ? paperRow("Vignette (annual)", papers && papers.vignette_due) : ""}
-      ${plainPaperRow("Insurance start", papers && papers.insurance_start_date)}
-      ${paperRow("Insurance end", papers && papers.insurance_end_date)}
-      <a class="opp-link" href="http://www.assiaqacard.ma/opppub/" target="_blank" rel="noopener">
+      <div class="section-label" style="margin-top:0;">Edit dates</div>
+      <div class="field">
+        <label>Registration card — validity end date ${warnBadge(papers && papers.registration_date)}</label>
+        <input type="date" id="pp-reg" value="${(papers && papers.registration_date) || ""}">
+      </div>
+      ${v.type !== "moto" ? `
+      <div class="field">
+        <label>Visite technique due ${warnBadge(papers && papers.visite_due)}</label>
+        <input type="date" id="pp-visite" value="${(papers && papers.visite_due) || ""}">
+      </div>` : ""}
+      ${v.type !== "moto" ? `
+      <div class="field">
+        <label>Vignette due (annual, January) ${warnBadge(papers && papers.vignette_due)}</label>
+        <input type="date" id="pp-vignette" value="${(papers && papers.vignette_due) || ""}">
+      </div>` : ""}
+      <div class="field-row">
+        <div class="field"><label>Insurance start</label><input type="date" id="pp-ins-start" value="${(papers && papers.insurance_start_date) || ""}"></div>
+        <div class="field"><label>Insurance end ${warnBadge(papers && papers.insurance_end_date)}</label><input type="date" id="pp-ins-end" value="${(papers && papers.insurance_end_date) || ""}"></div>
+      </div>
+      <button class="wiz-next" style="width:100%;" onclick="savePapers('${v.id}')">Save changes</button>
+
+      <a class="opp-link" style="margin-top:16px;" href="http://www.assiaqacard.ma/opppub/" target="_blank" rel="noopener">
         <div>
           <div class="otitle">Check opposition status</div>
           <div class="osub">Free, official check on the government portal</div>
@@ -370,10 +385,167 @@ async function addService(vehicleId) {
 }
 
 async function promptMarkSold(vehicleId) {
-  if (!confirm("Mark this vehicle as sold? It will move out of your active list, and its history stays saved.")) return;
+  if (!confirm("Mark this vehicle as sold? It will move to your archive, and its history stays saved.")) return;
   const { error } = await sb.from("vehicles").update({ status: "sold" }).eq("id", vehicleId);
   if (error) { alert(error.message); return; }
   backToSearch();
+}
+
+async function savePapers(vehicleId) {
+  const registration_date = document.getElementById("pp-reg").value || null;
+  const visiteEl = document.getElementById("pp-visite");
+  const vignetteEl = document.getElementById("pp-vignette");
+  const visite_due = visiteEl ? visiteEl.value || null : null;
+  const vignette_due = vignetteEl ? vignetteEl.value || null : null;
+  const insurance_start_date = document.getElementById("pp-ins-start").value || null;
+  const insurance_end_date = document.getElementById("pp-ins-end").value || null;
+
+  const { error } = await sb.from("vehicle_papers").upsert({
+    vehicle_id: vehicleId,
+    registration_date, visite_due, vignette_due, insurance_start_date, insurance_end_date,
+  }, { onConflict: "vehicle_id" });
+
+  if (error) { alert(error.message); return; }
+  openVehicle(vehicleId);
+}
+
+let editState = null;
+
+async function openEditVehicle(vehicleId) {
+  const v = currentVehicles.find(x => x.id === vehicleId) || (await sb.from("vehicles").select("*").eq("id", vehicleId).single()).data;
+  if (!v) return;
+  editState = { id: v.id, type: v.type, make: v.make || "", model: v.model || "", year: v.year || "", fuelType: v.fuel_type || "essence",
+    vin: v.vin || "", plate: v.plate || "", color: v.color || null, mileage: v.current_mileage || "",
+    rimSize: v.rim_size || "", tirePressure: v.tire_pressure || "" };
+  document.getElementById("editModal").classList.add("show");
+  renderEditForm();
+}
+
+function closeEditModal() {
+  document.getElementById("editModal").classList.remove("show");
+  editState = null;
+}
+
+function renderEditForm() {
+  const s = editState;
+  const makes = getMakesForType(s.type);
+  const models = s.make && s.make !== "Other" ? getModelsForMake(s.make) : [];
+  const modelIsText = !s.make || s.make === "Other" || models.length === 0;
+  document.getElementById("editModalBody").innerHTML = `
+    <div class="field"><label>Vehicle type</label>
+      <select id="ed-type" onchange="editTypeChange(this.value)">
+        ${VEHICLE_TYPES.map(t => `<option value="${t.id}" ${s.type === t.id ? "selected" : ""}>${t.label}</option>`).join("")}
+      </select>
+    </div>
+    <div class="field"><label>Make</label>
+      <select id="ed-make" onchange="editMakeChange(this.value)">
+        <option value="">Select make…</option>
+        ${makes.map(m => `<option value="${m}" ${s.make === m ? "selected" : ""}>${m}</option>`).join("")}
+      </select>
+    </div>
+    <div class="field"><label>Model</label>
+      ${modelIsText
+        ? `<input type="text" id="ed-model" value="${s.model === "Other" ? "" : s.model}">`
+        : `<select id="ed-model">
+             <option value="">Select model…</option>
+             ${models.map(md => `<option value="${md}" ${s.model === md ? "selected" : ""}>${md}</option>`).join("")}
+             <option value="Other" ${s.model === "Other" ? "selected" : ""}>Other</option>
+           </select>`
+      }
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Year</label><input type="number" id="ed-year" value="${s.year}"></div>
+      <div class="field"><label>Fuel type</label>
+        <select id="ed-fuel">
+          <option value="essence" ${s.fuelType === "essence" ? "selected" : ""}>Essence</option>
+          <option value="diesel" ${s.fuelType === "diesel" ? "selected" : ""}>Diesel</option>
+          <option value="hybrid" ${s.fuelType === "hybrid" ? "selected" : ""}>Hybrid</option>
+          <option value="electric" ${s.fuelType === "electric" ? "selected" : ""}>Electric</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>VIN / chassis number</label><input type="text" id="ed-vin" value="${s.vin}"></div>
+    <div class="field"><label>License plate</label><input type="text" id="ed-plate" value="${s.plate}"></div>
+    <div class="field"><label>Color</label>
+      <div class="color-grid">
+        ${COLORS.map(c => `<div class="swatch ${s.color === c ? "sel" : ""}" style="background:${c}" onclick="editSelectColor('${c}')"></div>`).join("")}
+      </div>
+    </div>
+    <div class="field"><label>Current mileage (km)</label><input type="number" id="ed-mileage" value="${s.mileage}"></div>
+    <div class="field-row">
+      <div class="field"><label>Rim size</label><input type="text" id="ed-rim" value="${s.rimSize}"></div>
+      <div class="field"><label>Tire pressure (PSI)</label><input type="number" id="ed-pressure" value="${s.tirePressure}"></div>
+    </div>
+  `;
+}
+
+function editTypeChange(value) {
+  saveEditFormToState();
+  editState.type = value;
+  editState.make = ""; editState.model = "";
+  renderEditForm();
+}
+function editMakeChange(value) {
+  saveEditFormToState();
+  editState.make = value;
+  editState.model = "";
+  renderEditForm();
+}
+function editSelectColor(c) {
+  editState.color = c;
+  renderEditForm();
+}
+
+function saveEditFormToState() {
+  const s = editState;
+  const yearEl = document.getElementById("ed-year");
+  const fuelEl = document.getElementById("ed-fuel");
+  const vinEl = document.getElementById("ed-vin");
+  const plateEl = document.getElementById("ed-plate");
+  const mileageEl = document.getElementById("ed-mileage");
+  const rimEl = document.getElementById("ed-rim");
+  const pressureEl = document.getElementById("ed-pressure");
+  if (yearEl) s.year = yearEl.value;
+  if (fuelEl) s.fuelType = fuelEl.value;
+  if (vinEl) s.vin = vinEl.value;
+  if (plateEl) s.plate = plateEl.value;
+  if (mileageEl) s.mileage = mileageEl.value;
+  if (rimEl) s.rimSize = rimEl.value;
+  if (pressureEl) s.tirePressure = pressureEl.value;
+}
+
+async function saveEditVehicle() {
+  saveEditFormToState();
+  const s = editState;
+  const modelEl = document.getElementById("ed-model");
+  if (modelEl) s.model = modelEl.value;
+
+  const { error } = await sb.from("vehicles").update({
+    type: s.type, make: s.make || null, model: s.model || null, year: Number(s.year) || null,
+    fuel_type: s.fuelType || null, vin: s.vin || null, plate: s.plate || null, color: s.color || null,
+    current_mileage: Number(s.mileage) || 0, rim_size: s.rimSize || null, tire_pressure: Number(s.tirePressure) || null,
+  }).eq("id", s.id);
+
+  if (error) { alert(error.message); return; }
+  const vehicleId = s.id;
+  closeEditModal();
+  await renderRecentList();
+  openVehicle(vehicleId);
+}
+
+async function restoreVehicle(vehicleId) {
+  const { error } = await sb.from("vehicles").update({ status: "active" }).eq("id", vehicleId);
+  if (error) { alert(error.message); return; }
+  await renderRecentList();
+  openVehicle(vehicleId);
+}
+
+async function deleteVehicleForever(vehicleId) {
+  if (!confirm("Delete this vehicle and all its history permanently? This can't be undone.")) return;
+  const { error } = await sb.from("vehicles").delete().eq("id", vehicleId);
+  if (error) { alert(error.message); return; }
+  backToSearch();
+  renderMyVehiclesScreen();
 }
 
 function bindDetailEvents(vehicleId) {
@@ -389,15 +561,53 @@ function bindDetailEvents(vehicleId) {
   });
 }
 
+async function renderMyVehiclesScreen() {
+  showScreen("screen-myvehicles");
+  const el = document.getElementById("screen-myvehicles");
+  el.innerHTML = `
+    <header class="top">
+      <div class="seal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#141F38" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><div class="word">My vehicles</div><div class="tag">Active and archived (sold)</div></div>
+    </header>
+    <div class="body-pad"><div class="hint">Loading…</div></div>
+  `;
+
+  const { data, error } = await sb.from("vehicles").select("*").order("created_at", { ascending: false });
+  if (error) {
+    el.querySelector(".body-pad").innerHTML = `<div class="hint" style="color:var(--coral);">Could not load vehicles: ${error.message}</div>`;
+    return;
+  }
+  const active = (data || []).filter(v => v.status === "active");
+  const sold = (data || []).filter(v => v.status === "sold");
+
+  function card(v, muted) {
+    return `
+      <div class="rcard" style="${muted ? "opacity:0.6;" : ""}" onclick="openVehicle('${v.id}')">
+        <div class="plate">${v.plate || "—"}</div>
+        <div class="meta"><b>${v.make || "Vehicle"} ${v.model || ""}</b> · ${v.year || ""}</div>
+        <div class="badge ${scoreTone(quickScore(v))}">${quickScore(v)}</div>
+      </div>
+    `;
+  }
+
+  el.querySelector(".body-pad").innerHTML = `
+    <div class="section-label" style="margin-top:0;">Active (${active.length}/${MAX_FREE_VEHICLES} free)</div>
+    ${active.length === 0 ? `<div class="hint">No active vehicles.</div>` : active.map(v => card(v, false)).join("")}
+    <div class="section-label">Archived — sold (${sold.length})</div>
+    ${sold.length === 0 ? `<div class="hint">Vehicles you mark as sold will appear here.</div>` : sold.map(v => card(v, true)).join("")}
+  `;
+}
+
 // bottom tab bar
 document.querySelectorAll(".tabbar-btn").forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll(".tabbar-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     if (btn.dataset.nav === "search") {
-      screenDetail.classList.remove("active");
-      screenSearch.classList.add("active");
+      showScreen("screen-search");
       renderRecentList();
+    } else if (btn.dataset.nav === "vehicles") {
+      renderMyVehiclesScreen();
     } else if (btn.dataset.nav === "account") {
       if (confirm("Log out?")) signOut();
     }
