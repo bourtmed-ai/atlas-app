@@ -12,6 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     --ink:#141F38; --paper:#F6F3EC; --paper2:#EDE8DB;
@@ -97,7 +99,7 @@
   .ai-q{font-size:12px;color:var(--muted);margin-bottom:8px;}
   .ai-a{font-size:14px;line-height:1.6;}
 
-  .tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;max-width:520px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom);}
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;max-width:520px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom);z-index:10;}
   .tabbar-btn{flex:1;border:none;background:none;padding:12px 4px 10px;font-size:11px;color:var(--muted);font-family:'Inter',sans-serif;}
   .tabbar-btn.active{color:var(--ink);font-weight:500;}
 
@@ -195,8 +197,25 @@
   .opp-link .osub{font-size:11px;color:var(--muted);margin-top:2px;}
   .opp-link .oarrow{color:var(--gold-dim);font-size:16px;}
 
-  .wiz-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);max-width:520px;margin:0 auto;padding:12px 20px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;}
+  .wiz-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);max-width:520px;margin:0 auto;padding:12px 20px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;z-index:60;}
   .wiz-nav button{flex:1;border-radius:12px;padding:13px;font-size:14px;font-weight:500;font-family:'Inter',sans-serif;border:none;}
+
+  .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+  .rstat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
+  .rstat .rlabel{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);}
+  .rstat .rval{font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin-top:2px;}
+  .rstat.good .rval{color:var(--teal);}
+  .rstat.bad .rval{color:var(--coral);}
+
+  .station-picker-btn{width:100%;display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--ink);text-align:left;font-family:'Inter',sans-serif;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,31,56,0.55);display:none;align-items:flex-end;z-index:100;}
+  .modal-overlay.show{display:flex;}
+  .modal-card{background:var(--paper);width:100%;max-width:520px;margin:0 auto;border-radius:20px 20px 0 0;max-height:85vh;overflow:auto;padding-bottom:env(safe-area-inset-bottom);}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;}
+  .modal-x{background:none;border:none;font-size:22px;color:var(--muted);line-height:1;}
+  .modal-title{font-family:'Fraunces',serif;font-weight:600;font-size:16px;}
+  .modal-add{background:var(--ink);color:var(--paper);border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:500;font-family:'Inter',sans-serif;}
   .wiz-back{background:var(--paper2);color:var(--ink);flex:0 0 90px !important;}
   .wiz-next{background:var(--ink);color:var(--paper);}
   .wiz-skip{background:none;color:var(--muted);text-decoration:underline;font-size:12px;text-align:center;margin-top:10px;width:100%;border:none;}
@@ -251,10 +270,27 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="stationModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <button class="modal-x" onclick="closeStationPicker()">&times;</button>
+      <div class="modal-title">Set gas station</div>
+      <button class="modal-add" onclick="confirmStation()">Add</button>
+    </div>
+    <div id="stationMapEl" style="height:220px; border-radius:12px; overflow:hidden; margin:0 20px 14px;"></div>
+    <div class="field" style="padding:0 20px;">
+      <label>Station name</label>
+      <input type="text" id="stationNameInput" placeholder="Detecting nearby name…">
+    </div>
+    <div class="hint" style="padding:0 20px 20px;" id="stationHint">Getting your location…</div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
 <script src="app.js"></script>
 <script src="onboarding.js"></script>
+<script src="station-picker.js"></script>
 </body>
 </html>
