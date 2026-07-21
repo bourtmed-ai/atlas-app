@@ -227,6 +227,38 @@
   .review-block{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;}
   .review-block .rk{font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.05em;margin-bottom:6px;}
   .review-block .rv{font-size:13px;line-height:1.6;}
+
+  /* --- Atlas wax-seal restyle patch --- */
+  .rcard, .spec-card, .ov-hero{
+    background-image: radial-gradient(rgba(20,31,56,0.08) 0.6px, transparent 0.6px);
+    background-size: 13px 13px;
+  }
+  .badge{ position:relative; border-style:solid; border-width:1px; }
+  .badge::after{
+    content:""; position:absolute; inset:3px;
+    border:1px dashed currentColor; border-radius:50%; opacity:0.5;
+  }
+  .ppill{
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    padding:4px 10px; border-radius:6px; white-space:nowrap; flex-shrink:0;
+  }
+  .ppill.valid{ background:rgba(15,110,86,0.12); color:var(--teal); }
+  .ppill.duesoon{ background:rgba(196,143,43,0.16); color:var(--gold-dim); }
+  .ppill.expired{ background:rgba(179,73,43,0.14); color:var(--coral); }
+  .ppill.notset{ background:var(--paper2); color:var(--muted); }
+  .spec-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;}
+  .spec-row:last-child{border-bottom:none;}
+  .spec-row .sk{color:var(--muted);}
+  .spec-row .sv{font-weight:500;}
+  .spec-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:2px 16px;margin-bottom:24px;}
+  .ov-hero{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
+  .ov-mileage-num{font-family:'Fraunces',serif;font-weight:600;font-size:30px;color:var(--gold-dim);text-align:right;}
+  .ov-mileage-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);text-align:right;}
+  .plate-chip{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--paper);padding:6px 12px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .plate-chip .dot{width:6px;height:6px;border-radius:3px;background:var(--gold);display:inline-block;}
+  .paper-glance-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);}
+  .paper-glance-row:last-child{border-bottom:none;}
+  .glance-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:2px 16px;margin-bottom:24px;}
 </style>
 </head>
 <body>
@@ -244,7 +276,13 @@
       </div>
     </header>
     <div class="body-pad">
-      <div class="section-label" style="margin-top:0;">Search a vehicle</div>
+      <div class="section-label" style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+        <span>On file <span id="vehicleCount" class="num" style="text-transform:none; letter-spacing:0;"></span></span>
+        <button id="addVehicleBtn" style="background:none; color:var(--gold-dim); border:none; padding:0; font-size:20px; line-height:1; font-family:'Inter',sans-serif;">+</button>
+      </div>
+      <div id="recentList"></div>
+
+      <div class="section-label">Search a vehicle</div>
       <div class="mode-toggle">
         <button id="mode-plate" class="active">By plate</button>
         <button id="mode-vin">By VIN</button>
@@ -255,12 +293,6 @@
       </div>
       <div class="hint" id="searchHint">Try: 45789-B-12, or 78234-A-6</div>
       <div id="emptyNote">No vehicle found for that plate or VIN.</div>
-
-      <div class="section-label" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>Your vehicles</span>
-        <button id="addVehicleBtn" style="background:var(--ink); color:var(--paper); border:none; border-radius:20px; padding:6px 14px; font-size:12px; font-weight:500; font-family:'Inter',sans-serif;">+ Add vehicle</button>
-      </div>
-      <div id="recentList"></div>
     </div>
   </div>
 
