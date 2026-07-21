@@ -38,8 +38,11 @@ async function renderRecentList() {
 
   currentVehicles = data || [];
 
+  const countEl = document.getElementById("vehicleCount");
+  if (countEl) countEl.textContent = `· ${currentVehicles.length} vehicle${currentVehicles.length === 1 ? "" : "s"}`;
+
   if (currentVehicles.length === 0) {
-    list.innerHTML = `<div class="hint">No vehicles yet — tap "+ Add vehicle" above to register your first one.</div>`;
+    list.innerHTML = `<div class="hint">No vehicles yet — tap "+" above to register your first one.</div>`;
     return;
   }
 
@@ -134,6 +137,20 @@ function warnBadge(dateStr) {
   return "";
 }
 
+// Papers-at-a-glance pill: Valid / Due soon / Expired / Not set — matches the Atlas mock
+function paperPill(dateStr) {
+  if (!dateStr) return `<span class="ppill notset">Not set</span>`;
+  const days = daysUntil(dateStr);
+  if (days < 0) return `<span class="ppill expired">Expired</span>`;
+  if (days <= 30) return `<span class="ppill duesoon">Due soon</span>`;
+  return `<span class="ppill valid">Valid</span>`;
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function avgConsumption(fuelEntries) {
   const full = fuelEntries.filter(f => f.full_tank).sort((a, b) => a.odometer - b.odometer);
   if (full.length < 2) return null;
@@ -201,6 +218,7 @@ function recalcLiters() {
 function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
   const consumption = avgConsumption(fuelEntries);
   const score = quickScore(v);
+  const lastService = serviceRecords[0];
 
   return `
     <div class="detail-top">
@@ -236,22 +254,63 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
     </div>
 
     <div class="tabs">
-      <button class="tab active" data-tab="mileage">Mileage &amp; Fuel</button>
-      <button class="tab" data-tab="maintenance">Maintenance</button>
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="fuel">Fuel</button>
+      <button class="tab" data-tab="service">Service</button>
       <button class="tab" data-tab="papers">Papers</button>
     </div>
 
-    <div class="tab-panel active" data-panel="mileage">
-      <div class="section-label" style="margin-top:0;">Fuel report</div>
-      ${fuelReportHtml(fuelEntries)}
+    <div class="tab-panel active" data-panel="overview">
+      <div class="ov-hero">
+        <div>
+          <div class="plate-chip"><span class="dot"></span>${v.plate || "—"}</div>
+          <div class="hint" style="margin-top:8px;">${(v.type || "vehicle").toUpperCase()} · ${(v.fuel_type || "—").toUpperCase()}</div>
+        </div>
+        <div>
+          <div class="ov-mileage-num">${(v.current_mileage || 0).toLocaleString()}</div>
+          <div class="ov-mileage-lbl">km</div>
+        </div>
+      </div>
 
-      <div class="section-label">Add entry</div>
+      <div class="section-label" style="margin-top:0;">Specifications</div>
+      <div class="spec-card">
+        <div class="spec-row"><span class="sk">Type</span><span class="sv">${v.type || "—"}</span></div>
+        <div class="spec-row"><span class="sk">Fuel</span><span class="sv">${v.fuel_type || "—"}</span></div>
+        <div class="spec-row"><span class="sk">Year</span><span class="sv">${v.year || "—"}</span></div>
+        <div class="spec-row"><span class="sk">VIN</span><span class="sv num">${v.vin || "—"}</span></div>
+        <div class="spec-row"><span class="sk">Color</span><span class="sv">${v.color ? `<span style="display:inline-block;width:11px;height:11px;border-radius:6px;background:${v.color};margin-right:6px;vertical-align:middle;"></span>${v.color}` : "—"}</span></div>
+        <div class="spec-row"><span class="sk">Rim size</span><span class="sv">${v.rim_size || "—"}</span></div>
+        <div class="spec-row"><span class="sk">Tyre pressure</span><span class="sv">${v.tire_pressure || "—"}</span></div>
+      </div>
+
+      <div class="section-label">Papers at a glance</div>
+      <div class="glance-card">
+        <div class="paper-glance-row"><div><div>Registration card</div><div class="hint" style="margin:2px 0 0;">${fmtDate(papers && papers.registration_date)}</div></div>${paperPill(papers && papers.registration_date)}</div>
+        ${v.type !== "moto" ? `<div class="paper-glance-row"><div><div>Visite technique</div><div class="hint" style="margin:2px 0 0;">${fmtDate(papers && papers.visite_due)}</div></div>${paperPill(papers && papers.visite_due)}</div>` : ""}
+        ${v.type !== "moto" ? `<div class="paper-glance-row"><div><div>Vignette</div><div class="hint" style="margin:2px 0 0;">${fmtDate(papers && papers.vignette_due)}</div></div>${paperPill(papers && papers.vignette_due)}</div>` : ""}
+        <div class="paper-glance-row"><div><div>Insurance</div><div class="hint" style="margin:2px 0 0;">${fmtDate(papers && papers.insurance_end_date)}</div></div>${paperPill(papers && papers.insurance_end_date)}</div>
+      </div>
+
+      ${lastService ? `
+      <div class="section-label">Last service</div>
+      <div class="rec">
+        <div class="rec-title">${lastService.service_type || "Service"}</div>
+        <div class="rec-date">${fmtDate(lastService.entry_date)}${lastService.odometer ? " · " + lastService.odometer + " km" : ""}</div>
+      </div>` : ""}
+
+      <div class="section-label">Update odometer</div>
       <div class="field-row">
         <div class="field"><label>Date</label><input type="date" id="ml-date"></div>
         <div class="field"><label>Odometer (km)</label><input type="number" id="ml-odo" placeholder="e.g. 85200"></div>
       </div>
-      <button class="wiz-next" style="width:100%; margin-bottom:8px;" onclick="addMileage('${v.id}')">Log mileage</button>
+      <button class="wiz-next" style="width:100%;" onclick="addMileage('${v.id}')">Log mileage</button>
+    </div>
 
+    <div class="tab-panel" data-panel="fuel">
+      <div class="section-label" style="margin-top:0;">Fuel report</div>
+      ${fuelReportHtml(fuelEntries)}
+
+      <div class="section-label">Add fill-up</div>
       <div class="field-row">
         <div class="field"><label>Fuel date</label><input type="date" id="fl-date"></div>
         <div class="field"><label>Odometer <span class="opt">${v.current_mileage ? "last: " + v.current_mileage + " km" : ""}</span></label><input type="number" id="fl-odo"></div>
@@ -273,17 +332,14 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
       </div>
       <button class="wiz-next" style="width:100%;" onclick="addFuel('${v.id}')">Log fuel</button>
 
-      <div class="section-label">History</div>
-      ${mileageEntries.length === 0 && fuelEntries.length === 0 ? `<div class="hint">No entries yet.</div>` : ""}
-      ${mileageEntries.map(m => `
-        <div class="rec"><div class="rec-head"><div class="rec-title">Mileage: ${m.odometer} km</div></div><div class="rec-date">${m.entry_date}</div></div>
-      `).join("")}
+      <div class="section-label">Fill-up log</div>
+      ${fuelEntries.length === 0 ? `<div class="hint">No fill-ups yet.</div>` : ""}
       ${fuelEntries.map(f => `
         <div class="rec"><div class="rec-head"><div class="rec-title">${f.liters} L${f.price_paid ? " · " + f.price_paid + " MAD" : ""}</div><div class="vstatus ${f.full_tank ? "verified" : "self"}">${f.full_tank ? "Full" : "Partial"}</div></div><div class="rec-date">${f.entry_date}</div><div class="rec-meta">${f.odometer} km${f.gas_station_name ? " · " + f.gas_station_name : ""}</div></div>
       `).join("")}
     </div>
 
-    <div class="tab-panel" data-panel="maintenance">
+    <div class="tab-panel" data-panel="service">
       <div class="section-label" style="margin-top:0;">Add service record</div>
       <div class="field-row">
         <div class="field"><label>Date</label><input type="date" id="sv-date"></div>
@@ -297,7 +353,7 @@ function renderDetail(v, papers, mileageEntries, fuelEntries, serviceRecords) {
       <div class="field"><label>Garage <span class="opt">(optional)</span></label><input type="text" id="sv-garage" placeholder="e.g. Garage Al Amal"></div>
       <button class="wiz-next" style="width:100%;" onclick="addService('${v.id}')">Log service</button>
 
-      <div class="section-label">History</div>
+      <div class="section-label">Service history</div>
       ${serviceRecords.length === 0 ? `<div class="hint">No service records yet.</div>` : ""}
       ${serviceRecords.map(m => `
         <div class="rec">
@@ -370,6 +426,8 @@ async function addFuel(vehicleId) {
     gas_station_lng: pendingStation ? pendingStation.lng : null,
   });
   if (error) { alert(error.message); return; }
+  // Fill-ups also move the odometer forward, matching the Atlas mock's mileage-from-fill-up behavior
+  await sb.from("vehicles").update({ current_mileage: odometer }).eq("id", vehicleId);
   pendingStation = null;
   openVehicle(vehicleId);
 }
