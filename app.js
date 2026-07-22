@@ -487,7 +487,7 @@ function closeEditModal() {
 function renderEditForm() {
   const s = editState;
   const makes = getMakesForType(s.type);
-  const models = s.make && s.make !== "Other" ? getModelsForMake(s.make) : [];
+  const models = s.make && s.make !== "Other" ? getModelsForMake(s.make, s.type) : [];
   const modelIsText = !s.make || s.make === "Other" || models.length === 0;
   document.getElementById("editModalBody").innerHTML = `
     <div class="field"><label>Vehicle type</label>
