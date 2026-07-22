@@ -13,89 +13,158 @@ const COLORS = ["#1A1A1A", "#F2F2F2", "#7A7A7A", "#B3492B", "#0F6E56", "#185FA5"
 
 const SERVICE_TYPES = ["Oil change", "Brake pads", "Timing belt", "Tires", "Battery", "Filters", "Other", "None yet"];
 
-// Make lists per vehicle type (Morocco-relevant brands). "Other" always lets the user type a custom value.
+// Make lists per vehicle type. A make can appear in more than one type (e.g. Honda makes both
+// cars and motorcycles) — the model list is looked up per TYPE, so it never mixes categories.
+// "Other" always lets the user type a custom value.
 const VEHICLE_MAKES = {
-  car: ["Audi","BMW","BYD","Changan","Chery","Chevrolet","Citroën","Dacia","DFSK","Fiat","Ford","GAC","Geely","Haval","Honda","Hyundai","Jeep","Jetour","Kia","Land Rover","Mazda","Mercedes-Benz","MG","Mitsubishi","Nissan","Opel","Peugeot","Renault","Seat","Škoda","Suzuki","Toyota","Volkswagen","Volvo","Other"],
-  moto: ["Bajaj","Benelli","BMW Motorrad","Fantic","Honda","Kawasaki","KTM","Loncin","Mash","Peugeot Motocycles","Piaggio","Suzuki","SYM","TVS","Vespa","Yamaha","Other"],
-  van: ["Citroën","Fiat","Ford","Iveco","Mercedes-Benz","Opel","Peugeot","Renault","Volkswagen","Other"],
-  truck: ["Ford","Foton","Isuzu","Iveco","JAC","Mercedes-Benz","Renault Trucks","Tata","Other"],
-  heavytruck: ["DAF","Iveco","MAN","Mercedes-Benz","Renault Trucks","Scania","Sinotruk","Volvo Trucks","Other"],
+  car: ["Alfa Romeo","Audi","Bentley","BMW","BYD","Cadillac","Changan","Chery","Chevrolet","Chrysler","Citroën","Dacia","DFSK","Dodge","Ferrari","Fiat","Ford","GAC","Geely","GMC","Great Wall","Haval","Honda","Hyundai","Infiniti","Isuzu","Jaguar","Jeep","Jetour","Kia","Lada","Lamborghini","Land Rover","Lexus","Lincoln","Maserati","Mazda","Mercedes-Benz","MG","Mini","Mitsubishi","Nissan","Opel","Peugeot","Porsche","Renault","Rolls-Royce","Seat","Škoda","SsangYong","Subaru","Suzuki","Tesla","Toyota","Volkswagen","Volvo","Zotye","Other"],
+  moto: ["Aprilia","Bajaj","Benelli","BMW Motorrad","CFMoto","Ducati","Fantic","Harley-Davidson","Honda","Husqvarna","Indian","Kawasaki","Keeway","KTM","Kymco","Loncin","Mash","Peugeot Motocycles","Piaggio","Royal Enfield","Sinnis","Suzuki","SYM","Triumph","TVS","Vespa","Yamaha","Zontes","Other"],
+  van: ["Citroën","Fiat","Ford","Hyundai","Iveco","Maxus","Mercedes-Benz","Nissan","Opel","Peugeot","Renault","Toyota","Volkswagen","Other"],
+  truck: ["Ford","Foton","Hyundai","Isuzu","Iveco","JAC","Mercedes-Benz","Nissan","Renault Trucks","Tata","Other"],
+  heavytruck: ["DAF","Foton","Iveco","MAN","Mercedes-Benz","Renault Trucks","Scania","Sinotruk","Volvo Trucks","Other"],
 };
 
-// Model lists per make. Not exhaustive — "Other" on the make list, or picking "Other" as a model,
-// switches the model field to free text so nothing is ever a dead end.
+// Model lists, scoped per vehicle type so a shared make (Honda, Suzuki, Ford, Mercedes-Benz,
+// Renault, Peugeot, Citroën, Fiat, Iveco...) never mixes cars with motorcycles/vans/trucks.
+// Not exhaustive — "Other" on the make list, or picking "Other" as a model, switches the
+// model field to free text so nothing is ever a dead end.
 const MODELS_BY_MAKE = {
-  "Dacia": ["Dokker","Duster","Lodgy","Logan","Sandero","Sandero Stepway"],
-  "Renault": ["Captur","Clio","Duster","Kadjar","Kangoo","Mégane","Symbol","Talisman"],
-  "Peugeot": ["2008","208","3008","301","5008","508"],
-  "Volkswagen": ["Golf","Passat","Polo","Tiguan","Touareg"],
-  "Hyundai": ["Accent","Elantra","i10","i20","Santa Fe","Tucson"],
-  "Toyota": ["Corolla","Hilux","Land Cruiser","RAV4","Yaris"],
-  "Ford": ["Fiesta","Focus","Kuga","Ranger"],
-  "Fiat": ["500","Doblo","Panda","Tipo"],
-  "Citroën": ["Berlingo","C-Elysée","C3","C4","C5 Aircross"],
-  "Kia": ["Picanto","Rio","Sportage","Sorento"],
-  "Mercedes-Benz": ["A-Class","C-Class","CLA","E-Class","GLA","GLC"],
-  "BMW": ["1 Series","3 Series","5 Series","X1","X3","X5"],
-  "Audi": ["A3","A4","A6","Q3","Q5"],
-  "Nissan": ["Juke","Micra","Qashqai","Sunny"],
-  "Honda": ["Civic","CR-V","HR-V"],
-  "Suzuki": ["Alto","Jimny","Swift","Vitara"],
-  "Chevrolet": ["Aveo","Cruze","Spark"],
-  "Opel": ["Astra","Corsa","Insignia"],
-  "Seat": ["Ibiza","Leon"],
-  "Škoda": ["Fabia","Octavia","Superb"],
-  "Volvo": ["S60","XC40","XC60"],
-  "Land Rover": ["Defender","Discovery","Range Rover Evoque"],
-  "Jeep": ["Compass","Renegade","Wrangler"],
-  "Mitsubishi": ["ASX","L200","Pajero"],
-  "Mazda": ["CX-3","CX-5","Mazda3"],
-  "Chery": ["Tiggo 4","Tiggo 7","Tiggo 8"],
-  "DFSK": ["Glory 500","Glory 580"],
-  "Changan": ["CS35","CS55","Eado"],
-  "MG": ["MG3","MG5","ZS"],
-  "BYD": ["Atto 3","Han","Song Plus"],
-  "GAC": ["GS3","GS4"],
-  "Jetour": ["Dashing","X70"],
-  "Haval": ["H6","Jolion"],
-  "Geely": ["Coolray","Emgrand"],
-
-  "Yamaha": ["FZ","MT-07","MT-15","Tricity","XMAX","YBR 125"],
-  "Kawasaki": ["Ninja 400","Versys","Z400","Z900"],
-  "BMW Motorrad": ["F 850 GS","G 310 R","R 1250 GS"],
-  "KTM": ["390 Duke","690 Duke","Adventure 390"],
-  "Piaggio": ["Beverly","Liberty","Medley"],
-  "Vespa": ["GTS","Primavera","Sprint"],
-  "Peugeot Motocycles": ["Django","Kisbee","Tweet"],
-  "SYM": ["Fiddle","Jet 14","Symphony"],
-  "Benelli": ["Leoncino","TRK 502"],
-  "Bajaj": ["Boxer","Pulsar"],
-  "TVS": ["Apache","Sport"],
-  "Loncin": ["GY 125","LX 200"],
-  "Mash": ["Five Hundred","Seventy Five"],
-  "Fantic": ["Caballero"],
-
-  "Iveco": ["Daily"],
-
-  "Isuzu": ["D-Max","NPR","NQR"],
-  "Renault Trucks": ["C Range","D Series","T Range"],
-  "Foton": ["Aumark","Tunland"],
-  "JAC": ["N Series"],
-  "Tata": ["Ace","LPT"],
-
-  "Volvo Trucks": ["FH","FM"],
-  "Scania": ["R Series","S Series"],
-  "MAN": ["TGS","TGX"],
-  "DAF": ["CF","XF"],
-  "Sinotruk": ["Howo A7"],
+  car: {
+    "Dacia": ["Dokker","Duster","Lodgy","Logan","Sandero","Sandero Stepway"],
+    "Renault": ["Arkana","Captur","Clio","Duster","Kadjar","Kangoo","Mégane","Symbol","Talisman"],
+    "Peugeot": ["2008","208","301","3008","5008","508"],
+    "Volkswagen": ["Golf","Passat","Polo","T-Cross","Tiguan","Touareg"],
+    "Hyundai": ["Accent","Creta","Elantra","i10","i20","Santa Fe","Tucson"],
+    "Toyota": ["Camry","Corolla","Fortuner","Hilux","Land Cruiser","RAV4","Yaris"],
+    "Ford": ["EcoSport","Fiesta","Focus","Kuga","Ranger"],
+    "Fiat": ["500","Doblo","Panda","Tipo"],
+    "Citroën": ["Berlingo","C-Elysée","C3","C4","C5 Aircross"],
+    "Kia": ["Picanto","Rio","Seltos","Sorento","Sportage"],
+    "Mercedes-Benz": ["A-Class","C-Class","CLA","E-Class","GLA","GLC"],
+    "BMW": ["1 Series","3 Series","5 Series","X1","X3","X5"],
+    "Audi": ["A3","A4","A6","Q3","Q5"],
+    "Nissan": ["Juke","Kicks","Micra","Qashqai","Sunny"],
+    "Honda": ["Accord","BR-V","City","Civic","CR-V","HR-V","Jazz"],
+    "Suzuki": ["Alto","Ertiga","Jimny","Swift","Vitara"],
+    "Chevrolet": ["Aveo","Cruze","Spark"],
+    "Opel": ["Astra","Corsa","Grandland","Insignia"],
+    "Seat": ["Ibiza","Leon"],
+    "Škoda": ["Fabia","Octavia","Superb"],
+    "Volvo": ["S60","XC40","XC60"],
+    "Land Rover": ["Defender","Discovery","Range Rover Evoque"],
+    "Jeep": ["Compass","Grand Cherokee","Renegade","Wrangler"],
+    "Mitsubishi": ["ASX","L200","Outlander","Pajero"],
+    "Mazda": ["CX-3","CX-5","Mazda2","Mazda3"],
+    "Chery": ["Arrizo 5","Tiggo 4","Tiggo 7","Tiggo 8"],
+    "DFSK": ["Glory 500","Glory 580"],
+    "Changan": ["Alsvin","CS35","CS55","Eado"],
+    "MG": ["HS","MG3","MG5","ZS"],
+    "BYD": ["Atto 3","Dolphin","Han","Song Plus"],
+    "GAC": ["Emzoom","GS3","GS4"],
+    "Jetour": ["Dashing","X70"],
+    "Haval": ["H6","Jolion"],
+    "Geely": ["Coolray","Emgrand"],
+    "Zotye": ["T600","Z100"],
+    "Great Wall": ["Poer","Wingle"],
+    "Isuzu": ["D-Max","MU-X"],
+    "Alfa Romeo": ["Giulia","Stelvio"],
+    "Bentley": ["Bentayga","Continental GT"],
+    "Cadillac": ["Escalade","XT5"],
+    "Chrysler": ["300"],
+    "Dodge": ["Charger","Durango"],
+    "Ferrari": ["296","Roma"],
+    "GMC": ["Sierra","Yukon"],
+    "Infiniti": ["Q50","QX60"],
+    "Jaguar": ["F-Pace","XE"],
+    "Lada": ["Granta","Niva","Vesta"],
+    "Lamborghini": ["Huracán","Urus"],
+    "Lexus": ["ES","NX","RX"],
+    "Lincoln": ["Navigator"],
+    "Maserati": ["Ghibli","Levante"],
+    "Mini": ["Cooper","Countryman"],
+    "Porsche": ["911","Cayenne","Macan"],
+    "Rolls-Royce": ["Cullinan","Ghost"],
+    "SsangYong": ["Korando","Tivoli"],
+    "Subaru": ["Forester","Outback"],
+    "Tesla": ["Model 3","Model Y"],
+  },
+  moto: {
+    "Yamaha": ["FZ","MT-07","MT-15","NMAX","Tenere 700","Tricity","XMAX","YBR 125"],
+    "Kawasaki": ["Ninja 400","Versys","Vulcan S","Z400","Z900"],
+    "BMW Motorrad": ["F 850 GS","G 310 R","R 1250 GS","S 1000 RR"],
+    "KTM": ["390 Duke","690 Duke","Adventure 390","RC 390"],
+    "Piaggio": ["Beverly","Liberty","Medley","MP3"],
+    "Vespa": ["GTS","Primavera","Sprint"],
+    "Peugeot Motocycles": ["Django","Kisbee","Tweet"],
+    "SYM": ["Fiddle","Jet 14","Symphony"],
+    "Benelli": ["502C","Leoncino","TRK 502"],
+    "Bajaj": ["Avenger","Boxer","Pulsar"],
+    "TVS": ["Apache","Ntorq","Sport"],
+    "Loncin": ["GY 125","LX 200"],
+    "Mash": ["Five Hundred","Seventy Five"],
+    "Fantic": ["Caballero"],
+    "Honda": ["Africa Twin","CB125F","CB500F","CBR500R","CRF250L","Forza 300","PCX 150","XR150L"],
+    "Suzuki": ["Burgman","Gixxer","GSX-R600","V-Strom 650"],
+    "Aprilia": ["RS 660","SR 160","Tuono 660"],
+    "Ducati": ["Monster","Panigale V2","Scrambler"],
+    "Harley-Davidson": ["Fat Boy","Iron 883","Street Bob"],
+    "Husqvarna": ["Svartpilen 401","Vitpilen 401"],
+    "Indian": ["Chief","Scout"],
+    "Kymco": ["Agility 125","Xciting 400"],
+    "Royal Enfield": ["Classic 350","Himalayan","Meteor 350"],
+    "Sinnis": ["Apache","Terrain"],
+    "Triumph": ["Bonneville T100","Street Triple","Tiger 900"],
+    "Zontes": ["125U","310R"],
+    "CFMoto": ["300NK","650MT"],
+    "Keeway": ["RKF 125","Superlight 125"],
+  },
+  van: {
+    "Citroën": ["Berlingo Van","Jumper","Jumpy"],
+    "Fiat": ["Doblo Cargo","Ducato","Scudo"],
+    "Ford": ["Transit","Transit Connect","Transit Custom"],
+    "Hyundai": ["H1","Staria"],
+    "Iveco": ["Daily"],
+    "Maxus": ["Deliver 9","V80"],
+    "Mercedes-Benz": ["Citan","Sprinter","Vito"],
+    "Nissan": ["NV200","NV300","Primastar"],
+    "Opel": ["Movano","Vivaro"],
+    "Peugeot": ["Boxer","Expert","Partner"],
+    "Renault": ["Kangoo Van","Master","Trafic"],
+    "Toyota": ["Hiace","Proace"],
+    "Volkswagen": ["Caddy","Crafter","Transporter"],
+  },
+  truck: {
+    "Ford": ["F-150","Ranger"],
+    "Foton": ["Aumark","Tunland"],
+    "Hyundai": ["HD65","HD78","Porter"],
+    "Isuzu": ["D-Max","FRR","NPR","NQR"],
+    "Iveco": ["Eurocargo","Stralis"],
+    "JAC": ["N Series","Sunray"],
+    "Mercedes-Benz": ["Actros","Atego"],
+    "Nissan": ["Cabstar","NP300"],
+    "Renault Trucks": ["C Range","D Series","T Range"],
+    "Tata": ["Ace","LPT","Prima"],
+  },
+  heavytruck: {
+    "DAF": ["CF","LF","XF"],
+    "Foton": ["Auman"],
+    "Iveco": ["Trakker","X-Way"],
+    "MAN": ["TGS","TGX"],
+    "Mercedes-Benz": ["Actros","Arocs"],
+    "Renault Trucks": ["C Range Heavy","K Range"],
+    "Scania": ["G Series","R Series","S Series"],
+    "Sinotruk": ["Howo A7","Howo T7H"],
+    "Volvo Trucks": ["FH","FM","FMX"],
+  },
 };
 
 function getMakesForType(type) {
   const list = VEHICLE_MAKES[type] || VEHICLE_MAKES.car;
   return list.slice().sort((a, b) => a.localeCompare(b));
 }
-function getModelsForMake(make) {
-  const list = MODELS_BY_MAKE[make] || [];
+function getModelsForMake(make, type) {
+  const byType = MODELS_BY_MAKE[type] || {};
+  const list = byType[make] || [];
   return list.slice().sort((a, b) => a.localeCompare(b));
 }
 
@@ -237,7 +306,7 @@ function renderStepBody() {
     `;
   } else if (key === "identity") {
     const makes = getMakesForType(s.type);
-    const models = s.make && s.make !== "Other" ? getModelsForMake(s.make) : [];
+    const models = s.make && s.make !== "Other" ? getModelsForMake(s.make, s.type) : [];
     const modelIsText = !s.make || s.make === "Other" || models.length === 0;
     body.innerHTML = `
       <div class="field"><label>Make</label>
